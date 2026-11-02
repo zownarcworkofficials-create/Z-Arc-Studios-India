@@ -1102,6 +1102,11 @@
         transition: gap 0.34s var(--ease);
     }
 
+    .converter-options.is-ogg,
+    .converter-options.is-opus-vbr {
+        gap: 0;
+    }
+
     .option-group {
         flex: 1 1 0;
         display: flex;
@@ -1111,11 +1116,33 @@
     }
 
     /* Bitrate and bit depth share one animated slot: lossy formats show
-       bitrate; lossless formats show bit depth in the same position. */
+       bitrate; lossless formats show bit depth in the same position. Ogg
+       Vorbis collapses the slot because it uses the quality slider instead. */
     .quality-slot {
         flex: 1 1 0;
         min-width: 0;
         display: grid;
+        max-width: 100%;
+        max-height: 80px;
+        opacity: 1;
+        visibility: visible;
+        transition: max-width 0.34s var(--ease),
+                    max-height 0.34s var(--ease),
+                    opacity 0.22s ease,
+                    visibility 0s linear 0s;
+    }
+
+    .quality-slot.is-off {
+        max-width: 0;
+        max-height: 0;
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+        overflow: hidden;
+        transition: max-width 0.34s var(--ease),
+                    max-height 0.34s var(--ease),
+                    opacity 0.18s ease,
+                    visibility 0s linear 0.34s;
     }
 
     .quality-panel {
@@ -1237,8 +1264,10 @@
         color: rgba(255, 255, 255, 0.32);
     }
 
-    /* Bitrate mode collapses away for lossless formats */
-    .bitrate-mode-group {
+    /* Bitrate mode collapses away for lossless formats and Ogg Vorbis.
+       Opus tuning rows use the same animated collapse. */
+    .bitrate-mode-group,
+    .opus-option-group {
         max-height: 64px;
         margin-top: 14px;
         overflow: hidden;
@@ -1250,7 +1279,8 @@
                     visibility 0s linear 0s;
     }
 
-    .bitrate-mode-group.is-off {
+    .bitrate-mode-group.is-off,
+    .opus-option-group.is-off {
         max-height: 0;
         margin-top: 0;
         opacity: 0;
@@ -1312,7 +1342,8 @@
                     visibility 0s linear 0.34s;
     }
 
-    /* FLAC compression level: appears directly below sample rate only for FLAC */
+    /* Shared slider styling: FLAC compression and Ogg Vorbis quality.
+       Both sliders sit directly below the sample-rate option. */
     .flac-compression-group {
         --flac-accent: #3b82f6;
         --flac-accent-rgb: 59, 130, 246;
@@ -1960,6 +1991,33 @@
         opacity: 1;
     }
 
+    .select-option .option-main {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        min-width: 0;
+    }
+
+    .select-option .option-main > span:first-child {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .select-option .option-recommended {
+        flex: none;
+        padding: 1px 6px;
+        border: 1px solid rgba(96, 165, 250, 0.32);
+        border-radius: 999px;
+        background: rgba(59, 130, 246, 0.12);
+        color: #93c5fd;
+        font-size: 0.6rem;
+        font-weight: 600;
+        letter-spacing: 0.03em;
+        line-height: 1.4;
+        text-transform: uppercase;
+    }
+
     .convert-btn {
         display: flex;
         align-items: center;
@@ -2055,6 +2113,7 @@
         width: 30px;
         height: 30px;
         flex-shrink: 0;
+        align-self: flex-start;
         border-radius: 50%;
         border: 1px solid rgba(34, 197, 94, 0.35);
         background: rgba(34, 197, 94, 0.15);
@@ -2072,6 +2131,8 @@
         flex-direction: column;
         gap: 2px;
         min-width: 0;
+        text-align: left;
+        overflow-wrap: anywhere;
     }
 
     .done-copy strong {
@@ -2083,6 +2144,15 @@
     .done-copy span {
         font-size: 0.72rem;
         color: rgba(255, 255, 255, 0.45);
+    }
+
+    .done-copy .done-size {
+        margin-top: 2px;
+        font-size: 0.95rem;
+        font-weight: 700;
+        letter-spacing: 0.015em;
+        color: #f0fdf4;
+        font-variant-numeric: tabular-nums;
     }
 
     .done-copy .done-status {
@@ -2385,11 +2455,13 @@
             scroll-behavior: auto !important;
         }
 
-        .quality-panel.is-off {
+        .quality-panel.is-off,
+        .quality-slot.is-off {
             transition-delay: 0s !important;
         }
 
-        .bitrate-mode-group.is-off {
+        .bitrate-mode-group.is-off,
+        .opus-option-group.is-off {
             transition-delay: 0s !important;
         }
 
@@ -2778,6 +2850,64 @@
                                 <div class="select-menu" id="rateSelectMenu" role="listbox" aria-label="Sample rate" hidden></div>
                             </div>
                         </div>
+                        <div class="option-group flac-compression-group opus-quality-group is-off" id="opusQualityGroup">
+                            <div class="option-label-row">
+                                <span class="option-label" id="opusQualityLabel">Quality</span>
+                                <span class="flac-level-value" id="opusQualityValue">6</span>
+                            </div>
+                            <div class="flac-slider-row">
+                                <span class="flac-slider-edge" aria-hidden="true">1</span>
+                                <input class="flac-slider" id="opusQualitySlider" type="range"
+                                       min="1" max="10" step="1" value="6"
+                                       aria-labelledby="opusQualityLabel"
+                                       aria-describedby="opusQualityHint">
+                                <span class="flac-slider-edge" aria-hidden="true">10</span>
+                            </div>
+                            <div class="flac-compression-note" id="opusQualityHint">
+                                <span class="flac-compression-tag" id="opusQualityTag">Recommended</span>
+                                <span aria-hidden="true">&middot;</span>
+                                <span>higher quality uses more bitrate</span>
+                            </div>
+                            <div class="flac-sparkles" aria-hidden="true">
+                                <span class="flac-sparkle"></span>
+                                <span class="flac-sparkle"></span>
+                                <span class="flac-sparkle"></span>
+                                <span class="flac-sparkle"></span>
+                                <span class="flac-sparkle"></span>
+                                <span class="flac-sparkle"></span>
+                                <span class="flac-sparkle"></span>
+                                <span class="flac-sparkle"></span>
+                            </div>
+                        </div>
+                        <div class="option-group flac-compression-group vorbis-quality-group is-off" id="vorbisQualityGroup">
+                            <div class="option-label-row">
+                                <span class="option-label" id="vorbisQualityLabel">Quality</span>
+                                <span class="flac-level-value" id="vorbisQualityValue">6</span>
+                            </div>
+                            <div class="flac-slider-row">
+                                <span class="flac-slider-edge" aria-hidden="true">1</span>
+                                <input class="flac-slider" id="vorbisQualitySlider" type="range"
+                                       min="1" max="10" step="1" value="6"
+                                       aria-labelledby="vorbisQualityLabel"
+                                       aria-describedby="vorbisQualityHint">
+                                <span class="flac-slider-edge" aria-hidden="true">10</span>
+                            </div>
+                            <div class="flac-compression-note" id="vorbisQualityHint">
+                                <span class="flac-compression-tag" id="vorbisQualityTag">Recommended</span>
+                                <span aria-hidden="true">&middot;</span>
+                                <span>higher quality uses more space</span>
+                            </div>
+                            <div class="flac-sparkles" aria-hidden="true">
+                                <span class="flac-sparkle"></span>
+                                <span class="flac-sparkle"></span>
+                                <span class="flac-sparkle"></span>
+                                <span class="flac-sparkle"></span>
+                                <span class="flac-sparkle"></span>
+                                <span class="flac-sparkle"></span>
+                                <span class="flac-sparkle"></span>
+                                <span class="flac-sparkle"></span>
+                            </div>
+                        </div>
                         <div class="option-group flac-compression-group is-off" id="flacCompressionGroup">
                             <div class="option-label-row">
                                 <span class="option-label" id="flacCompressionLabel">Compression level</span>
@@ -2814,7 +2944,7 @@
                                     <option value="CONSTANT">Constant(CBR)</option>
                                     <option value="AVERAGE">Average(ABR)</option>
                                     <option value="CONSTRAINED">Constrained Variable (CVBR)</option>
-                                    <option value="VARIABLE" selected>Variable(VBR)</option>
+                                    <option value="VARIABLE" data-recommended-for="OPUS" selected>Variable(VBR)</option>
                                 </select>
                                 <button class="select select-trigger" id="bitrateModeSelectBtn" type="button"
                                         aria-haspopup="listbox" aria-expanded="false"
@@ -2827,13 +2957,52 @@
                                 <div class="select-menu" id="bitrateModeSelectMenu" role="listbox" aria-label="Bitrate mode" hidden></div>
                             </div>
                         </div>
+                        <div class="option-group opus-option-group is-off" id="opusFrameGroup">
+                            <span class="option-label" id="opusFrameLabel">Frame duration</span>
+                            <div class="select-wrap select-menu-wrap" id="opusFrameSelectWrap">
+                                <select class="select-native" id="opusFrameSelect" tabindex="-1" aria-hidden="true">
+                                    <option value="2.5">2.5 ms</option>
+                                    <option value="5">5 ms</option>
+                                    <option value="10">10 ms</option>
+                                    <option value="20" data-recommended-for="OPUS" selected>20 ms</option>
+                                    <option value="40">40 ms</option>
+                                    <option value="60">60 ms</option>
+                                </select>
+                                <button class="select select-trigger" id="opusFrameSelectBtn" type="button"
+                                        aria-haspopup="listbox" aria-expanded="false"
+                                        aria-labelledby="opusFrameLabel opusFrameSelectValue">
+                                    <span class="select-value" id="opusFrameSelectValue">20 ms</span>
+                                    <svg class="select-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                        <polyline points="6 9 12 15 18 9"></polyline>
+                                    </svg>
+                                </button>
+                                <div class="select-menu" id="opusFrameSelectMenu" role="listbox" aria-label="Frame duration" hidden></div>
+                            </div>
+                        </div>
+                        <div class="option-group opus-option-group is-off" id="opusApplicationGroup">
+                            <span class="option-label" id="opusApplicationLabel">Optimised for</span>
+                            <div class="select-wrap select-menu-wrap" id="opusApplicationSelectWrap">
+                                <select class="select-native" id="opusApplicationSelect" tabindex="-1" aria-hidden="true">
+                                    <option value="voip">Speech</option>
+                                    <option value="audio" selected>Audio</option>
+                                    <option value="lowdelay">Low delay</option>
+                                </select>
+                                <button class="select select-trigger" id="opusApplicationSelectBtn" type="button"
+                                        aria-haspopup="listbox" aria-expanded="false"
+                                        aria-labelledby="opusApplicationLabel opusApplicationSelectValue">
+                                    <span class="select-value" id="opusApplicationSelectValue">Audio</span>
+                                    <svg class="select-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                        <polyline points="6 9 12 15 18 9"></polyline>
+                                    </svg>
+                                </button>
+                                <div class="select-menu" id="opusApplicationSelectMenu" role="listbox" aria-label="Optimised for" hidden></div>
+                            </div>
+                        </div>
                         <div class="option-group music-profile-group is-off" id="musicProfileGroup">
                             <span class="option-label" id="musicProfileOptionLabel">Audio Profile</span>
                             <div class="select-wrap select-menu-wrap" id="musicProfileSelectWrap">
                                 <select class="select-native" id="musicProfileSelect" tabindex="-1" aria-hidden="true">
                                     <option value="AACLC" selected>AAC-LC (Low Complexity)</option>
-                                    <option value="HEAACV1">HE-AAC v1 (High-Efficiency)</option>
-                                    <option value="XHEAAC">xHE-AAC (Extended HE-AAC)</option>
                                     <option value="AC3">AC3</option>
                                     <option value="EAC3">E-AC3 (Recommended)</option>
                                 </select>
@@ -2892,6 +3061,7 @@
                         <span class="done-copy">
                             <strong>Conversion complete</strong>
                             <span id="doneSummary"></span>
+                            <span class="done-size" id="doneSize" aria-live="polite"></span>
                             <span class="done-status" id="doneStatus" aria-live="polite"></span>
                         </span>
                         <button type="button" class="done-save" id="doneSave">
@@ -2923,6 +3093,22 @@
     </main>
 
 <script>
+// AAC is converted by the source-built FFmpeg + libfdk_aac backend.
+// Set window.AUDIO_BACKEND_URL = null before this script to disable it, or set
+// it to the backend origin when the site is hosted separately.
+var AUDIO_BACKEND_URL = (function () {
+    if (window.AUDIO_BACKEND_URL === null) return null;
+    if (typeof window.AUDIO_BACKEND_URL === 'string') {
+        return window.AUDIO_BACKEND_URL.replace(/\/+$/, '');
+    }
+    if (location.hostname === '127.0.0.1' || location.hostname === 'localhost') {
+        // The existing static dev server runs on 8790; the FDK backend uses
+        // 8787. When the Node server serves the page itself, use same-origin.
+        return location.port === '8790' ? 'http://127.0.0.1:8787' : '';
+    }
+    return '';
+})();
+
 (function () {
     'use strict';
 
@@ -3022,6 +3208,7 @@
     var bitrateBtn      = document.getElementById('bitrateSelectBtn');
     var bitrateMenu     = document.getElementById('bitrateSelectMenu');
     var bitrateValue    = document.getElementById('bitrateSelectValue');
+    var qualitySlot     = document.getElementById('qualitySlot');
     var bitDepthGroup   = document.getElementById('bitDepthGroup');
     var bitDepthSelect  = document.getElementById('bitDepthSelect');
     var bitDepthWrap    = document.getElementById('bitDepthSelectWrap');
@@ -3045,12 +3232,45 @@
         'Fastest', 'Very fast', 'Fast', 'Balanced', 'Balanced',
         'Recommended', 'Smaller', 'Very small', 'Maximum'
     ];
+    var vorbisQualityGroup = document.getElementById('vorbisQualityGroup');
+    var vorbisQualitySlider = document.getElementById('vorbisQualitySlider');
+    var vorbisQualityValue = document.getElementById('vorbisQualityValue');
+    var vorbisQualityTag = document.getElementById('vorbisQualityTag');
+    var vorbisCelebrationTimer = null;
+    var vorbisColorPulseTimer = null;
+    var VORBIS_QUALITY_LABELS = [
+        '', 'Lowest', 'Very low', 'Low', 'Below average',
+        'Balanced', 'Recommended', 'Good', 'High', 'Very high', 'Maximum'
+    ];
+    var opusQualityGroup = document.getElementById('opusQualityGroup');
+    var opusQualitySlider = document.getElementById('opusQualitySlider');
+    var opusQualityValue = document.getElementById('opusQualityValue');
+    var opusQualityTag = document.getElementById('opusQualityTag');
+    var opusCelebrationTimer = null;
+    var opusColorPulseTimer = null;
+    var OPUS_QUALITY_LABELS = VORBIS_QUALITY_LABELS;
+    // libopus has no quality scale like libvorbis. VBR quality is expressed as
+    // a target bitrate; level 8 matches the previous 192 kbps Opus target and
+    // level 10 keeps the encoder's 512 kbps ceiling.
+    var OPUS_QUALITY_KBPS = [0, 32, 48, 64, 80, 96, 128, 160, 192, 256, 512];
     var bitrateModeGroup = document.getElementById('bitrateModeGroup');
     var bitrateModeSelect = document.getElementById('bitrateModeSelect');
     var bitrateModeWrap = document.getElementById('bitrateModeSelectWrap');
     var bitrateModeBtn  = document.getElementById('bitrateModeSelectBtn');
     var bitrateModeMenu = document.getElementById('bitrateModeSelectMenu');
     var bitrateModeValue = document.getElementById('bitrateModeSelectValue');
+    var opusFrameGroup = document.getElementById('opusFrameGroup');
+    var opusFrameSelect = document.getElementById('opusFrameSelect');
+    var opusFrameWrap = document.getElementById('opusFrameSelectWrap');
+    var opusFrameBtn = document.getElementById('opusFrameSelectBtn');
+    var opusFrameMenu = document.getElementById('opusFrameSelectMenu');
+    var opusFrameValue = document.getElementById('opusFrameSelectValue');
+    var opusApplicationGroup = document.getElementById('opusApplicationGroup');
+    var opusApplicationSelect = document.getElementById('opusApplicationSelect');
+    var opusApplicationWrap = document.getElementById('opusApplicationSelectWrap');
+    var opusApplicationBtn = document.getElementById('opusApplicationSelectBtn');
+    var opusApplicationMenu = document.getElementById('opusApplicationSelectMenu');
+    var opusApplicationValue = document.getElementById('opusApplicationSelectValue');
     var musicProfileSelect = document.getElementById('musicProfileSelect');
     var musicProfileWrap = document.getElementById('musicProfileSelectWrap');
     var musicProfileBtn  = document.getElementById('musicProfileSelectBtn');
@@ -3067,6 +3287,7 @@
     var progressLabel   = document.getElementById('progressLabel');
     var convertDone     = document.getElementById('convertDone');
     var doneSummary     = document.getElementById('doneSummary');
+    var doneSize        = document.getElementById('doneSize');
     var doneStatus      = document.getElementById('doneStatus');
     var doneSave        = document.getElementById('doneSave');
     var doneSaveText    = document.getElementById('doneSaveText');
@@ -3126,23 +3347,30 @@
         '64f': '64-bit float'
     };
 
-    // Each output family has its own valid audio profiles
+    // Each output family has its own valid audio profiles. The bundled
+    // native AAC encoder implements AAC-LC only; it accepts other -profile
+    // values but still writes LC payloads, so HE/HEv2/LD/ELD files are
+    // unplayable. Keep the AAC list honest rather than signalling a profile
+    // the encoder did not produce.
     var AUDIO_PROFILE_FAMILIES = {
-        AAC: { values: ['AACLC', 'HEAACV1', 'XHEAAC'], fallback: 'AACLC' },
+        AAC: { values: ['AACLC'], fallback: 'AACLC' },
         AC3: { values: ['AC3', 'EAC3'], fallback: 'EAC3' }
     };
 
     // Only show bitrate modes the selected encoder can actually honour.
     // Every lossy format keeps CBR; formats with a usable variable-rate path
     // also get VBR. MP3: CBR, ABR and LAME VBR. MP2: CBR, frame-averaged ABR
-    // and complexity-steered VBR. Opus: CBR, constrained VBR and VBR. Vorbis:
-    // bounded CBR, ABR, constrained VBR and quality-based VBR. AAC:
-    // bitrate-targeted CBR / ABR, constrained VBR and quality-based VBR.
-    // AC3/E-AC3 is CBR-only. The bundled WMA encoder is CBR-only as well, but
-    // the UI keeps the selected target when VBR is requested.
+    // and complexity-steered VBR. Opus: CBR and VBR (quality-based); libopus
+    // also supports constrained VBR, but the Opus UI keeps the two modes the
+    // quality slider can represent. Vorbis: bounded CBR, ABR, constrained VBR
+    // and quality-based VBR. AAC: native ABR and quality-based VBR plus
+    // frame-padded CBR/CVBR (the bundled native encoder has no rate-control
+    // switch for the bounded modes). AC3/E-AC3 is CBR-only. The bundled WMA
+    // encoder is CBR-only as well, but the UI keeps the selected target when
+    // VBR is requested.
     var BITRATE_MODE_FAMILIES = {
         MP3: { values: ['CONSTANT', 'AVERAGE', 'VARIABLE'], fallback: 'VARIABLE' },
-        OPUS: { values: ['CONSTANT', 'CONSTRAINED', 'VARIABLE'], fallback: 'VARIABLE' },
+        OPUS: { values: ['CONSTANT', 'VARIABLE'], fallback: 'VARIABLE' },
         OGG: { values: ['CONSTANT', 'AVERAGE', 'CONSTRAINED', 'VARIABLE'], fallback: 'VARIABLE' },
         AAC: { values: ['CONSTANT', 'AVERAGE', 'CONSTRAINED', 'VARIABLE'], fallback: 'VARIABLE' },
         AC3: { values: ['CONSTANT'], fallback: 'CONSTANT' },
@@ -3194,8 +3422,13 @@
             else if (mode === 'CONSTANT' && currentBitrate > 192) nextBitrate = 192;
             else if (currentBitrate > 448) nextBitrate = 448;
         } else if (selectedFormat === 'AAC') {
-            if (currentBitrate === 384) nextBitrate = 320;
-            else if (currentBitrate > 512) nextBitrate = 512;
+            // Native AAC caps an access unit at 6144 bits, so the usable
+            // ceiling depends on the output sample rate. 384 kbps is not an
+            // AAC option in the shared menu; fold it into the nearest valid
+            // rate below the cap.
+            var aacCap = currentAacMaxBitrate();
+            if (currentBitrate === 384) nextBitrate = Math.min(320, aacCap);
+            else if (currentBitrate > aacCap) nextBitrate = aacCap;
         } else if (currentBitrate === 384) {
             nextBitrate = 320;
         }
@@ -3212,35 +3445,52 @@
         var hasFormat = !!selectedFormat;
         var lossless = hasFormat && LOSSLESS_FORMATS.indexOf(selectedFormat) !== -1;
         var adpcm = hasFormat && isAdpcmFormat(selectedFormat);
-        var hasSelectableBitrate = hasFormat && !lossless && !adpcm;
-        var modeFamily = hasSelectableBitrate ? BITRATE_MODE_FAMILIES[selectedFormat] : null;
+        var isOgg = selectedFormat === 'OGG';
+        var isOpus = selectedFormat === 'OPUS';
+        var hasBitrateMode = hasFormat && !lossless && !adpcm && !isOgg;
+        var modeFamily = hasBitrateMode ? BITRATE_MODE_FAMILIES[selectedFormat] : null;
+
+        // Normalise the mode before deciding whether the bitrate control is
+        // visible. Opus VBR replaces bitrate with its quality slider, but the
+        // bitrate-mode selector itself remains available (CBR / VBR only).
+        if (modeFamily && modeFamily.values.indexOf(bitrateModeSelect.value) === -1) {
+            bitrateModeSelect.value = modeFamily.fallback;
+        }
+
+        var isOpusVbr = isOpus && bitrateModeSelect.value === 'VARIABLE';
+        var hasSelectableBitrate = hasBitrateMode && !isOpusVbr;
 
         converterOptions.classList.toggle('is-lossless', lossless);
+        converterOptions.classList.toggle('is-ogg', isOgg);
+        converterOptions.classList.toggle('is-opus-vbr', isOpusVbr);
         bitrateSelect.disabled = !hasSelectableBitrate;
         bitrateSelect.title = !hasFormat
             ? 'Choose an output format first'
-            : (adpcm ? 'ADPCM uses a fixed bitrate' : (lossless ? 'Lossless output has no bitrate' : ''));
+            : (isOgg
+                ? 'Ogg Vorbis uses a quality slider'
+                : (isOpusVbr
+                    ? 'Opus VBR uses a quality slider'
+                    : (adpcm ? 'ADPCM uses a fixed bitrate' : (lossless ? 'Lossless output has no bitrate' : ''))));
         bitrateBtn.disabled = !hasSelectableBitrate;
         bitrateBtn.title = bitrateSelect.title;
         if (!hasSelectableBitrate) bitrateDropdown.close(false);
 
-        bitrateModeGroup.classList.toggle('is-off', lossless || adpcm);
-        bitrateModeSelect.disabled = !hasFormat || lossless || adpcm;
-        bitrateModeBtn.disabled = !hasFormat || lossless || adpcm;
+        bitrateModeGroup.classList.toggle('is-off', !hasBitrateMode);
+        bitrateModeSelect.disabled = !hasBitrateMode;
+        bitrateModeBtn.disabled = !hasBitrateMode;
         bitrateModeBtn.title = !hasFormat
             ? 'Choose an output format first'
-            : (adpcm ? 'ADPCM has no selectable bitrate mode' : (lossless ? 'Lossless output has no bitrate mode' : ''));
+            : (isOgg
+                ? 'Ogg Vorbis uses a quality slider'
+                : (adpcm ? 'ADPCM has no selectable bitrate mode' : (lossless ? 'Lossless output has no bitrate mode' : '')));
 
         if (modeFamily) {
             // Keep the user's mode when it is valid for the new format;
             // otherwise fall back to the format's native default.
-            if (modeFamily.values.indexOf(bitrateModeSelect.value) === -1) {
-                bitrateModeSelect.value = modeFamily.fallback;
-            }
             bitrateModeDropdown.build();
             bitrateModeDropdown.syncLabel(false);
             bitrateModeDropdown.syncSelection();
-        } else if (lossless || adpcm || !hasFormat) {
+        } else {
             bitrateModeDropdown.close(false);
         }
 
@@ -3248,6 +3498,9 @@
         syncBitrateAvailability(false);
         syncBitDepthOptions();
         syncFlacCompressionOptions();
+        syncVorbisQualityOptions();
+        syncOpusOptions();
+        syncOpusQualityOptions();
 
         var clipGuardAvailable = hasFormat && !lossless;
         clipGuardGroup.classList.toggle('is-off', !clipGuardAvailable);
@@ -3258,6 +3511,8 @@
     function syncBitDepthOptions() {
         var lossless = !!selectedFormat && LOSSLESS_FORMATS.indexOf(selectedFormat) !== -1;
         var adpcm = !!selectedFormat && isAdpcmFormat(selectedFormat);
+        var isOgg = selectedFormat === 'OGG';
+        var isOpusVbr = selectedFormat === 'OPUS' && bitrateModeSelect.value === 'VARIABLE';
         var depthAvailable = lossless || adpcm;
         var allowed = depthAvailable
             ? (BIT_DEPTHS_BY_FORMAT[selectedFormat] || (adpcm ? ['4'] : ['16']))
@@ -3272,8 +3527,11 @@
 
         // Bitrate and bit depth share one grid slot. ADPCM has no bitrate
         // choice, so it shows its fixed 4-bit depth in that same position.
-        bitrateGroup.classList.toggle('is-off', lossless || adpcm);
+        // Ogg Vorbis and Opus VBR replace both with a quality slider in
+        // Advanced Settings.
+        bitrateGroup.classList.toggle('is-off', lossless || adpcm || isOgg || isOpusVbr);
         bitDepthGroup.classList.toggle('is-off', !depthAvailable);
+        qualitySlot.classList.toggle('is-off', isOgg || isOpusVbr);
         bitDepthSelect.disabled = !lossless;
         bitDepthBtn.disabled = !lossless;
         bitDepthBtn.title = adpcm
@@ -3378,6 +3636,201 @@
         }
     }
 
+    function pulseVorbisQualityColor() {
+        vorbisQualityGroup.classList.remove('is-color-pulse');
+        // Restart the color pulse on every slider movement.
+        void vorbisQualityGroup.offsetWidth;
+        vorbisQualityGroup.classList.add('is-color-pulse');
+        if (vorbisColorPulseTimer) clearTimeout(vorbisColorPulseTimer);
+        vorbisColorPulseTimer = setTimeout(function () {
+            vorbisQualityGroup.classList.remove('is-color-pulse');
+            vorbisColorPulseTimer = null;
+        }, 520);
+    }
+
+    function updateVorbisQualityUi(celebrate) {
+        var level = parseInt(vorbisQualitySlider.value, 10);
+        if (!isFinite(level)) level = 6;
+        level = Math.max(1, Math.min(10, level));
+        if (parseInt(vorbisQualitySlider.value, 10) !== level) {
+            vorbisQualitySlider.value = level;
+        }
+
+        var wasMax = vorbisQualityGroup.classList.contains('is-max');
+        var isLow = level <= 4;
+        var isMid = level >= 5 && level < 10;
+        var isMax = level === 10;
+        var label = VORBIS_QUALITY_LABELS[level] || 'Recommended';
+        vorbisQualityValue.textContent = level;
+        vorbisQualityTag.textContent = label;
+        vorbisQualitySlider.style.setProperty('--flac-progress', (((level - 1) / 9) * 100) + '%');
+        vorbisQualitySlider.setAttribute('aria-valuetext', level + ' - ' + label);
+        vorbisQualityGroup.classList.toggle('is-low', isLow);
+        vorbisQualityGroup.classList.toggle('is-mid', isMid);
+        vorbisQualityGroup.classList.toggle('is-max', isMax);
+
+        if (!isMax) {
+            vorbisQualityGroup.classList.remove('is-celebrating');
+            if (vorbisCelebrationTimer) {
+                clearTimeout(vorbisCelebrationTimer);
+                vorbisCelebrationTimer = null;
+            }
+            if (celebrate) pulseVorbisQualityColor();
+            return;
+        }
+
+        vorbisQualityGroup.classList.remove('is-color-pulse');
+        if (vorbisColorPulseTimer) {
+            clearTimeout(vorbisColorPulseTimer);
+            vorbisColorPulseTimer = null;
+        }
+
+        if (celebrate && !wasMax) {
+            vorbisQualityGroup.classList.remove('is-celebrating');
+            // Force a reflow so the max-quality celebration restarts.
+            void vorbisQualityGroup.offsetWidth;
+            vorbisQualityGroup.classList.add('is-celebrating');
+            if (vorbisCelebrationTimer) clearTimeout(vorbisCelebrationTimer);
+            vorbisCelebrationTimer = setTimeout(function () {
+                vorbisQualityGroup.classList.remove('is-celebrating');
+                vorbisCelebrationTimer = null;
+            }, 1100);
+        }
+    }
+
+    function syncVorbisQualityOptions() {
+        var isOgg = selectedFormat === 'OGG';
+        vorbisQualityGroup.classList.toggle('is-off', !isOgg);
+        vorbisQualitySlider.disabled = isConverting || !isOgg;
+
+        if (!isOgg) {
+            vorbisQualityGroup.classList.remove('is-celebrating');
+            vorbisQualityGroup.classList.remove('is-color-pulse');
+            if (vorbisCelebrationTimer) {
+                clearTimeout(vorbisCelebrationTimer);
+                vorbisCelebrationTimer = null;
+            }
+            if (vorbisColorPulseTimer) {
+                clearTimeout(vorbisColorPulseTimer);
+                vorbisColorPulseTimer = null;
+            }
+        }
+
+        updateVorbisQualityUi(false);
+        if (!isOgg) {
+            vorbisQualityGroup.classList.remove('is-max', 'is-low', 'is-mid');
+        }
+    }
+
+    function pulseOpusQualityColor() {
+        opusQualityGroup.classList.remove('is-color-pulse');
+        // Restart the color pulse on every slider movement.
+        void opusQualityGroup.offsetWidth;
+        opusQualityGroup.classList.add('is-color-pulse');
+        if (opusColorPulseTimer) clearTimeout(opusColorPulseTimer);
+        opusColorPulseTimer = setTimeout(function () {
+            opusQualityGroup.classList.remove('is-color-pulse');
+            opusColorPulseTimer = null;
+        }, 520);
+    }
+
+    function updateOpusQualityUi(celebrate) {
+        var level = parseInt(opusQualitySlider.value, 10);
+        if (!isFinite(level)) level = 6;
+        level = Math.max(1, Math.min(10, level));
+        if (parseInt(opusQualitySlider.value, 10) !== level) {
+            opusQualitySlider.value = level;
+        }
+
+        var wasMax = opusQualityGroup.classList.contains('is-max');
+        var isLow = level <= 4;
+        var isMid = level >= 5 && level < 10;
+        var isMax = level === 10;
+        var label = OPUS_QUALITY_LABELS[level] || 'Recommended';
+        opusQualityValue.textContent = level;
+        opusQualityTag.textContent = label;
+        opusQualitySlider.style.setProperty('--flac-progress', (((level - 1) / 9) * 100) + '%');
+        opusQualitySlider.setAttribute('aria-valuetext', level + ' - ' + label);
+        opusQualityGroup.classList.toggle('is-low', isLow);
+        opusQualityGroup.classList.toggle('is-mid', isMid);
+        opusQualityGroup.classList.toggle('is-max', isMax);
+
+        if (!isMax) {
+            opusQualityGroup.classList.remove('is-celebrating');
+            if (opusCelebrationTimer) {
+                clearTimeout(opusCelebrationTimer);
+                opusCelebrationTimer = null;
+            }
+            if (celebrate) pulseOpusQualityColor();
+            return;
+        }
+
+        opusQualityGroup.classList.remove('is-color-pulse');
+        if (opusColorPulseTimer) {
+            clearTimeout(opusColorPulseTimer);
+            opusColorPulseTimer = null;
+        }
+
+        if (celebrate && !wasMax) {
+            opusQualityGroup.classList.remove('is-celebrating');
+            // Force a reflow so the max-quality celebration restarts.
+            void opusQualityGroup.offsetWidth;
+            opusQualityGroup.classList.add('is-celebrating');
+            if (opusCelebrationTimer) clearTimeout(opusCelebrationTimer);
+            opusCelebrationTimer = setTimeout(function () {
+                opusQualityGroup.classList.remove('is-celebrating');
+                opusCelebrationTimer = null;
+            }, 1100);
+        }
+    }
+
+    function syncOpusQualityOptions() {
+        var isOpusVbr = selectedFormat === 'OPUS' && bitrateModeSelect.value === 'VARIABLE';
+        opusQualityGroup.classList.toggle('is-off', !isOpusVbr);
+        opusQualitySlider.disabled = isConverting || !isOpusVbr;
+
+        if (!isOpusVbr) {
+            opusQualityGroup.classList.remove('is-celebrating');
+            opusQualityGroup.classList.remove('is-color-pulse');
+            if (opusCelebrationTimer) {
+                clearTimeout(opusCelebrationTimer);
+                opusCelebrationTimer = null;
+            }
+            if (opusColorPulseTimer) {
+                clearTimeout(opusColorPulseTimer);
+                opusColorPulseTimer = null;
+            }
+        }
+
+        updateOpusQualityUi(false);
+        if (!isOpusVbr) {
+            opusQualityGroup.classList.remove('is-max', 'is-low', 'is-mid');
+        }
+    }
+
+    function syncOpusOptions() {
+        var isOpus = selectedFormat === 'OPUS';
+        opusFrameGroup.classList.toggle('is-off', !isOpus);
+        opusApplicationGroup.classList.toggle('is-off', !isOpus);
+
+        opusFrameSelect.disabled = isConverting || !isOpus;
+        opusFrameBtn.disabled = isConverting || !isOpus;
+        opusApplicationSelect.disabled = isConverting || !isOpus;
+        opusApplicationBtn.disabled = isConverting || !isOpus;
+
+        if (isOpus) {
+            opusFrameDropdown.build();
+            opusFrameDropdown.syncLabel(false);
+            opusFrameDropdown.syncSelection();
+            opusApplicationDropdown.build();
+            opusApplicationDropdown.syncLabel(false);
+            opusApplicationDropdown.syncSelection();
+        } else {
+            opusFrameDropdown.close(false);
+            opusApplicationDropdown.close(false);
+        }
+    }
+
     function syncClipGuardNote() {
         var lossless = !!selectedFormat && LOSSLESS_FORMATS.indexOf(selectedFormat) !== -1;
         var active = !!selectedFormat && !lossless && clipGuardToggle.checked;
@@ -3422,6 +3875,14 @@
         bitDepthSelect.disabled = !bitDepthEditable;
         bitDepthBtn.disabled = !bitDepthEditable;
         flacCompressionSlider.disabled = isConverting || selectedFormat !== 'FLAC';
+        vorbisQualitySlider.disabled = isConverting || selectedFormat !== 'OGG';
+        var opusVbr = selectedFormat === 'OPUS' &&
+            bitrateModeSelect.value === 'VARIABLE';
+        opusQualitySlider.disabled = isConverting || !opusVbr;
+        opusFrameSelect.disabled = isConverting || selectedFormat !== 'OPUS';
+        opusFrameBtn.disabled = isConverting || selectedFormat !== 'OPUS';
+        opusApplicationSelect.disabled = isConverting || selectedFormat !== 'OPUS';
+        opusApplicationBtn.disabled = isConverting || selectedFormat !== 'OPUS';
         clipGuardToggle.disabled = isConverting || !selectedFormat ||
             LOSSLESS_FORMATS.indexOf(selectedFormat) !== -1;
     }
@@ -3521,7 +3982,11 @@
             item.className = 'select-option';
             item.setAttribute('role', 'option');
             item.setAttribute('data-value', opt.value);
-            item.innerHTML = '<span>' + opt.textContent + '</span>' + CHECK_SVG;
+            var recommendedFor = (opt.getAttribute('data-recommended-for') || '').trim();
+            var recommended = !!recommendedFor && recommendedFor.split(/\s+/).indexOf(selectedFormat) !== -1;
+            item.innerHTML = '<span class="option-main"><span>' + opt.textContent + '</span>' +
+                (recommended ? '<span class="option-recommended">Recommended</span>' : '') +
+                '</span>' + CHECK_SVG;
             item.addEventListener('click', function () {
                 choose(opt.value);
                 close(true);
@@ -3744,9 +4209,10 @@
                 return kbps !== 384 && kbps <= 448;
             }
             if (selectedFormat === 'AAC') {
-                // The native AAC encoder accepts up to 512 kbps; higher
-                // targets are not useful with the bundled encoder.
-                return kbps !== 384 && kbps <= 512;
+                // Native AAC limits a frame to 6144 bits per 1024 samples.
+                // Hide rates above the sample-rate-dependent ceiling instead
+                // of letting the encoder silently fall short of the label.
+                return kbps !== 384 && kbps <= currentAacMaxBitrate();
             }
             // 384 kbps is an MP2-only rate; the formats handled above
             // only expose ranges their encoders honor.
@@ -3812,6 +4278,22 @@
         }
     });
 
+    var opusFrameDropdown = createSelectMenu({
+        select: opusFrameSelect,
+        wrap: opusFrameWrap,
+        btn: opusFrameBtn,
+        menu: opusFrameMenu,
+        value: opusFrameValue
+    });
+
+    var opusApplicationDropdown = createSelectMenu({
+        select: opusApplicationSelect,
+        wrap: opusApplicationWrap,
+        btn: opusApplicationBtn,
+        menu: opusApplicationMenu,
+        value: opusApplicationValue
+    });
+
     function updateToolsSearch() {
         var current = activeItem();
         var toolsActive = !!current && current.dataset.tab === 'tools';
@@ -3836,6 +4318,8 @@
         rateDropdown.close(false);
         bitrateModeDropdown.close(false);
         musicProfileDropdown.close(false);
+        opusFrameDropdown.close(false);
+        opusApplicationDropdown.close(false);
         converterPage.hidden = true;
         toolsHomeView.hidden = false;
         if (toolsPanel) toolsPanel.classList.remove('converter-mode');
@@ -3849,6 +4333,19 @@
         var i = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
         var value = bytes / Math.pow(1024, i);
         return (i === 0 ? value : value.toFixed(1)) + ' ' + units[i];
+    }
+
+    function formatExactSize(bytes) {
+        var value = Number(bytes);
+        if (!isFinite(value) || value <= 0) return '0 KB';
+        var units = ['KB', 'MB', 'GB', 'TB'];
+        var unit = 0;
+        var amount = value / 1024;
+        while (amount >= 1024 && unit < units.length - 1) {
+            amount /= 1024;
+            unit += 1;
+        }
+        return amount.toFixed(amount >= 10 ? 1 : 2) + ' ' + units[unit];
     }
 
     function resetConvertOutput() {
@@ -4294,7 +4791,7 @@
             return rate > 48000 ? 48000 : rate;
         }
         if (format === 'AAC') {
-            if ((profile === 'HEAACV1' || profile === 'XHEAAC') && rate > 48000) return 48000;
+            // AAC-LC accepts up to 96 kHz in the bundled native encoder.
             return rate > 96000 ? 96000 : rate;
         }
         if (format === 'AC3') {
@@ -4335,6 +4832,54 @@
         if (hz <= 24000) return 160;
         if (hz <= 32000) return 192;
         return 320;
+    }
+
+    // Native AAC stores at most 6144 bits in one 1024-sample frame, which
+    // caps the sustainable average near 6 bits per sample: about 264 kbps at
+    // 44.1 kHz and 288 kbps at 48 kHz. The shared menu also stops at 512 kbps
+    // for 88.2/96 kHz output. Keep the control, selection and encoder target
+    // on rates the bundled encoder can actually address.
+    var AAC_BITRATES = [6, 8, 12, 16, 24, 32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320, 448, 512];
+
+    function aacVbrMaxBitrate(rate) {
+        var hz = Number(rate) || 44100;
+        // Above 48 kHz the native quality scale tops out well below the
+        // 5.1-bit/sample estimate. At 64 kHz it reaches about 224 kbps; at
+        // 88.2/96 kHz the ceiling is about 256 kbps.
+        if (hz >= 88200) return 256;
+        if (hz >= 64000) return 224;
+        return Math.floor(hz * 5.1 / 1000);
+    }
+
+    function aacMaxBitrate(rate, mode) {
+        var hz = Number(rate) || 44100;
+        // CBR/CVBR can be padded up to the physical 6144-bit frame limit
+        // (about 6 bits/sample). Native ABR saturates near 5.1 bits/sample.
+        // Quality VBR has a lower ceiling at high sample rates.
+        var cap;
+        if (mode === 'VARIABLE') {
+            cap = aacVbrMaxBitrate(hz);
+        } else if (mode === 'CONSTANT' || mode === 'CONSTRAINED') {
+            cap = Math.floor(hz * 6 / 1000);
+        } else {
+            cap = Math.floor(hz * 5.1 / 1000);
+        }
+        return Math.max(8, Math.min(512, cap));
+    }
+
+    function aacMaxSelectableBitrate(rate, mode) {
+        var cap = aacMaxBitrate(rate, mode);
+        var best = AAC_BITRATES[0];
+        for (var i = 0; i < AAC_BITRATES.length; i++) {
+            if (AAC_BITRATES[i] <= cap) best = AAC_BITRATES[i];
+        }
+        return best;
+    }
+
+    function currentAacMaxBitrate() {
+        var mode = bitrateModeSelect.value;
+        var hz = resolveSampleRate('AAC', Number(sampleRateSelect.value) || 44100, 'AACLC');
+        return aacMaxSelectableBitrate(hz, mode);
     }
 
     function resolveBitrate(format, kbps, mode, rate, profile) {
@@ -4378,6 +4923,7 @@
             return nearestSupported(kbps, supported);
         }
         if (format === 'WMA') return Math.min(192, Math.max(32, kbps));
+        if (format === 'AAC') return Math.min(kbps, aacMaxSelectableBitrate(rate, mode));
         return kbps;
     }
 
@@ -4496,24 +5042,116 @@
         return 9;
     }
 
-    // The native AAC encoder exposes quality-based VBR through -q:a. Its
-    // usable quality range is roughly 0.1-2.0; map the selected bitrate to a
-    // quality that lands close to the requested target for typical content.
-    function aacVbrQuality(kbps) {
-        if (kbps <= 16) return 0.1;
-        if (kbps <= 24) return 0.3;
-        if (kbps <= 32) return 0.45;
-        if (kbps <= 40) return 0.6;
-        if (kbps <= 48) return 0.7;
-        if (kbps <= 56) return 0.78;
-        if (kbps <= 64) return 0.85;
-        if (kbps <= 80) return 0.95;
-        if (kbps <= 96) return 1.05;
-        if (kbps <= 112) return 1.2;
-        if (kbps <= 128) return 1.35;
-        if (kbps <= 160) return 1.6;
-        if (kbps <= 192) return 1.8;
-        return 2.0;
+    // Measured -q:a response of the bundled native AAC encoder (stereo).
+    // Each row is the average kbps at q = 0.1, 0.3, 0.5, 0.8, 1.0, 1.2,
+    // 1.4, 1.6, 1.8 and 2.0. VBR is quality-based, so the selected bitrate
+    // is a target rather than a guarantee. Interpolating between rates keeps
+    // the quality choice close to the request at low and high sample rates.
+    var AAC_VBR_QUALITIES = [0.1, 0.3, 0.5, 0.8, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0];
+    var AAC_VBR_RATES = [8000, 16000, 24000, 32000, 44100, 48000, 96000];
+    // The 44.1 kHz curve is measured more finely because it is the default.
+    var AAC_VBR_44100 = [
+        [24, 0.1], [30, 0.2], [47, 0.3], [66, 0.4], [75, 0.5], [79, 0.6],
+        [86, 0.7], [95, 0.8], [100, 0.9], [112, 1.0], [122, 1.1], [146, 1.2],
+        [157, 1.3], [162, 1.35], [170, 1.4], [180, 1.5], [191, 1.6],
+        [198, 1.7], [205, 1.8], [211, 1.9], [217, 2.0]
+    ];
+    var AAC_VBR_KBPS = {
+        8000:  [15, 23, 26, 32, 35, 37, 39, 42, 43, 44],
+        16000: [16, 39, 44, 53, 60, 67, 75, 80, 84, 88],
+        24000: [18, 42, 55, 66, 76, 86, 97, 106, 120, 126],
+        32000: [20, 45, 70, 82, 93, 111, 129, 142, 155, 161],
+        44100: [24, 47, 75, 95, 112, 146, 170, 191, 205, 217],
+        48000: [25, 48, 74, 95, 113, 140, 164, 202, 216, 235],
+        96000: [35, 66, 93, 116, 141, 163, 198, 216, 233, 255]
+    };
+
+    function aacVbrCurve(rate) {
+        var hz = Number(rate) || 44100;
+        if (AAC_VBR_KBPS[hz]) return AAC_VBR_KBPS[hz];
+        if (hz <= AAC_VBR_RATES[0]) return AAC_VBR_KBPS[AAC_VBR_RATES[0]];
+        var last = AAC_VBR_RATES.length - 1;
+        if (hz >= AAC_VBR_RATES[last]) return AAC_VBR_KBPS[AAC_VBR_RATES[last]];
+        for (var i = 1; i <= last; i++) {
+            if (hz <= AAC_VBR_RATES[i]) {
+                var lower = AAC_VBR_RATES[i - 1];
+                var upper = AAC_VBR_RATES[i];
+                var t = (hz - lower) / (upper - lower);
+                var a = AAC_VBR_KBPS[lower];
+                var b = AAC_VBR_KBPS[upper];
+                var curve = [];
+                for (var j = 0; j < a.length; j++) {
+                    curve.push(a[j] + (b[j] - a[j]) * t);
+                }
+                return curve;
+            }
+        }
+        return AAC_VBR_KBPS[44100];
+    }
+
+    function aacVbrQualityFromPairs(target, curve) {
+        if (target <= curve[0][0]) return curve[0][1];
+        if (target >= curve[curve.length - 1][0]) {
+            return curve[curve.length - 1][1];
+        }
+        for (var i = 1; i < curve.length; i++) {
+            if (target <= curve[i][0]) {
+                var prev = curve[i - 1];
+                var next = curve[i];
+                var span = next[0] - prev[0];
+                if (span <= 0) return next[1];
+                var quality = prev[1] +
+                    (next[1] - prev[1]) * (target - prev[0]) / span;
+                return Math.round(quality * 100) / 100;
+            }
+        }
+        return curve[curve.length - 1][1];
+    }
+
+    function aacVbrQuality(kbps, rate) {
+        var target = Number(kbps) || 128;
+        var hz = Number(rate) || 44100;
+        if (hz === 44100) return aacVbrQualityFromPairs(target, AAC_VBR_44100);
+
+        var curve = aacVbrCurve(hz);
+        var qs = AAC_VBR_QUALITIES;
+        if (target <= curve[0]) return qs[0];
+        if (target >= curve[curve.length - 1]) return qs[qs.length - 1];
+        for (var i = 1; i < curve.length; i++) {
+            if (target <= curve[i]) {
+                var span = curve[i] - curve[i - 1];
+                if (span <= 0) return qs[i];
+                var quality = qs[i - 1] +
+                    (qs[i] - qs[i - 1]) * (target - curve[i - 1]) / span;
+                return Math.round(quality * 100) / 100;
+            }
+        }
+        return qs[qs.length - 1];
+    }
+
+    function opusQualityBitrate(level) {
+        var q = Math.max(1, Math.min(10, parseInt(level, 10) || 6));
+        return OPUS_QUALITY_KBPS[q] || 128;
+    }
+
+    // The bundled libopus build overflows its wasm stack for stereo frames
+    // longer than 20 ms. Opus packets may legally contain multiple frames, so
+    // 40/60 ms output is produced by encoding safe 20 ms frames and joining
+    // them into one packet after muxing. 2.5/5/10/20 ms pass straight through.
+    function opusEncodeFrameDuration(frameMs) {
+        var frame = Number(frameMs);
+        return frame >= 20 ? 20 : (isFinite(frame) && frame > 0 ? frame : 20);
+    }
+
+    function opusRepacketizeGroupSize(frameMs) {
+        var frame = Number(frameMs);
+        if (frame === 40) return 2;
+        if (frame === 60) return 3;
+        return 1;
+    }
+
+    function opusFrameCompressionLevel(frameMs) {
+        return Number(frameMs) >= 20 ? 4 : 10;
     }
 
     var ADTS_SAMPLE_RATES = [96000, 88200, 64000, 48000, 44100, 32000, 24000, 22050, 16000, 12000, 11025, 8000, 7350];
@@ -4695,8 +5333,81 @@
         return out;
     }
 
-    // CVBR only raises undersized frames to the lower bound; larger frames keep
-    // their natural size up to the upper bound chosen by the encoder search.
+    // CVBR raises undersized frames to the lower bound, then distributes the
+    // remaining budget across frames with spare capacity so the stream's
+    // average lands on the requested target without any frame crossing the
+    // upper bound. A plain minimum-fill leaves low targets below their average.
+    function padAacAdtsConstrained(frames, minimumBytes, maximumBytes, targetBytes) {
+        var count = frames.length;
+        if (!count) return null;
+
+        var sizes = [];
+        var total = 0;
+        for (var i = 0; i < count; i++) {
+            var size = Math.max(minimumBytes, frames[i].bytes);
+            if (size > maximumBytes || frames[i].bytes > maximumBytes) return null;
+            sizes.push(size);
+            total += size;
+        }
+
+        var targetTotal = targetBytes * count;
+        if (total < targetTotal) {
+            var deficit = targetTotal - total;
+            var capacities = [];
+            var totalCapacity = 0;
+            for (var c = 0; c < count; c++) {
+                var capacity = Math.max(0, maximumBytes - sizes[c]);
+                capacities.push(capacity);
+                totalCapacity += capacity;
+            }
+            if (totalCapacity < deficit) return null;
+
+            var assigned = 0;
+            for (var a = 0; a < count; a++) {
+                var share = Math.floor(deficit * capacities[a] / totalCapacity);
+                sizes[a] += share;
+                assigned += share;
+            }
+            var remainder = deficit - assigned;
+            for (var r = 0; r < count && remainder > 0; r++) {
+                var room = maximumBytes - sizes[r];
+                var add = Math.min(room, remainder);
+                sizes[r] += add;
+                remainder -= add;
+            }
+            if (remainder > 0) return null;
+        }
+
+        var parts = [];
+        var outTotal = 0;
+        for (var p = 0; p < count; p++) {
+            var part = frames[p].bytes === sizes[p]
+                ? frames[p].data
+                : padAacFrame(frames[p], sizes[p]);
+            if (!part) return null;
+            parts.push(part);
+            outTotal += part.length;
+        }
+
+        var out = new Uint8Array(outTotal);
+        var offset = 0;
+        for (var q = 0; q < parts.length; q++) {
+            out.set(parts[q], offset);
+            offset += parts[q].length;
+        }
+        return out;
+    }
+
+    function aacBoundedAverageBytes(frames, minimumBytes) {
+        var total = 0;
+        for (var i = 0; i < frames.length; i++) {
+            total += Math.max(minimumBytes, frames[i].bytes);
+        }
+        return frames.length ? total / frames.length : 0;
+    }
+
+    // Fallback for the rare case where an exact average cannot be expressed
+    // by the fill-element encoder. It still guarantees the lower bound.
     function padAacAdtsMinimum(frames, minimumBytes) {
         var total = 0;
         var parts = [];
@@ -4748,7 +5459,8 @@
                 type: type, offset: offset, size: size, header: header,
                 body: offset + header, end: offset + size, depth: depth
             });
-            if (type === 'moov' || type === 'trak' || type === 'mdia' || type === 'edts') {
+            if (type === 'moov' || type === 'trak' || type === 'mdia' ||
+                type === 'minf' || type === 'stbl' || type === 'edts') {
                 collectMp4Boxes(view, offset + header, offset + size, depth + 1, out);
             }
             offset += size;
@@ -4767,6 +5479,49 @@
             }
         }
         return '';
+    }
+
+    // Average audio payload rate for a one-track AAC MP4. Container overhead
+    // is excluded so short VBR files do not over-report their bitrate.
+    function mp4AudioAverageKbps(data) {
+        if (!data || data.length < 32) return 0;
+        try {
+            var view = new DataView(data.buffer, data.byteOffset, data.byteLength);
+            var boxes = [];
+            collectMp4Boxes(view, 0, data.length, 0, boxes);
+            var stsz = null;
+            var mdhd = null;
+            for (var i = 0; i < boxes.length; i++) {
+                if (!stsz && boxes[i].type === 'stsz') stsz = boxes[i];
+                if (!mdhd && boxes[i].type === 'mdhd') mdhd = boxes[i];
+            }
+            if (!stsz || !mdhd || stsz.body + 12 > stsz.end) return 0;
+
+            var sampleSize = view.getUint32(stsz.body + 4);
+            var sampleCount = view.getUint32(stsz.body + 8);
+            var payload = 0;
+            if (sampleSize) {
+                payload = sampleSize * sampleCount;
+            } else {
+                for (var s = 0; s < sampleCount; s++) {
+                    var entry = stsz.body + 12 + s * 4;
+                    if (entry + 4 > stsz.end) return 0;
+                    payload += view.getUint32(entry);
+                }
+            }
+
+            var version = view.getUint8(mdhd.body);
+            var timescale = version === 1
+                ? view.getUint32(mdhd.body + 20)
+                : view.getUint32(mdhd.body + 12);
+            var duration = version === 1
+                ? Number(view.getBigUint64(mdhd.body + 24))
+                : view.getUint32(mdhd.body + 16);
+            if (!timescale || !duration || !payload) return 0;
+            return Math.round(payload * 8 * timescale / duration / 1000);
+        } catch (error) {
+            return 0;
+        }
     }
 
     function patchAacCbrTiming(data, durationSeconds, sampleRate, primingSamples, totalSamples) {
@@ -4885,34 +5640,12 @@
         return data;
     }
 
-    function appendAacProfileArgs(args, profile) {
-        if (profile === 'AACLC') {
-            args.push('-profile:a', 'aac_low');
-        } else if (profile === 'HEAACV1') {
-            args.push('-profile:a', 'aac_he');
-        } else if (profile === 'XHEAAC') {
-            // ffmpeg.wasm's native AAC encoder has no xHE; HE-AAC v2 is the
-            // closest supported high-efficiency profile.
-            args.push('-profile:a', 'aac_he_v2');
-        }
+    function appendAacProfileArgs(args) {
+        // The bundled native AAC encoder implements AAC-LC only. Always
+        // signal the profile it actually produces; other -profile values only
+        // change the container flag while leaving LC payloads behind.
+        args.push('-profile:a', 'aac_low');
         return args;
-    }
-
-    // libvorbis exposes quality-based VBR (-q:a, range -1 to 10) rather than
-    // a bitrate flag. Map the selected target to the nearest quality level.
-    function vorbisVbrQuality(kbps) {
-        if (kbps >= 500) return 10;
-        if (kbps >= 320) return 9;
-        if (kbps >= 256) return 8;
-        if (kbps >= 224) return 7;
-        if (kbps >= 192) return 6;
-        if (kbps >= 160) return 5;
-        if (kbps >= 128) return 4;
-        if (kbps >= 112) return 3;
-        if (kbps >= 96) return 2;
-        if (kbps >= 80) return 1;
-        if (kbps >= 64) return 0;
-        return -1;
     }
 
     function readConversionSettings() {
@@ -4931,6 +5664,12 @@
             bitDepth: resolveBitDepth(selectedFormat, bitDepthSelect.value),
             flacCompression: Math.max(0, Math.min(8,
                 parseInt(flacCompressionSlider.value, 10) || 0)),
+            vorbisQuality: Math.max(1, Math.min(10,
+                parseInt(vorbisQualitySlider.value, 10) || 6)),
+            opusQuality: Math.max(1, Math.min(10,
+                parseInt(opusQualitySlider.value, 10) || 6)),
+            opusFrameDuration: opusFrameSelect.value || '20',
+            opusApplication: opusApplicationSelect.value || 'audio',
             clipGuard: !!selectedFormat &&
                 LOSSLESS_FORMATS.indexOf(selectedFormat) === -1 &&
                 clipGuardToggle.checked
@@ -5058,7 +5797,7 @@
         } else if (format === 'AAC') {
             args.push('-c:a', 'aac');
             if (mode === 'VARIABLE') {
-                args.push('-q:a', String(aacVbrQuality(settings.bitrateKbps)));
+                args.push('-q:a', String(aacVbrQuality(settings.bitrateKbps, settings.rate)));
             } else {
                 args.push('-b:a', bitrateKbps + 'k');
                 // Native AAC has no hard-CBR or dedicated CVBR switch. CBR is
@@ -5069,37 +5808,30 @@
                     appendConstrainedRateArgs(args, bitrateKbps);
                 }
             }
-            appendAacProfileArgs(args, profile);
+            appendAacProfileArgs(args);
         } else if (format === 'OGG') {
-            args.push('-c:a', 'libvorbis');
-            if (mode === 'VARIABLE') {
-                args.push('-q:a', String(vorbisVbrQuality(bitrateKbps)));
-            } else {
-                args.push('-b:a', bitrateKbps + 'k');
-                if (mode === 'CONSTRAINED') {
-                    appendConstrainedRateArgs(args, bitrateKbps, oggMaxBitrate(settings.rate));
-                } else if (mode === 'CONSTANT') {
-                    // libvorbis has no dedicated CBR switch. Pinning the
-                    // managed rate window to the target produces a bounded
-                    // constant-average stream instead of an undershooting ABR.
-                    args.push(
-                        '-minrate', bitrateKbps + 'k',
-                        '-maxrate', bitrateKbps + 'k',
-                        '-bufsize', Math.max(bitrateKbps, Math.round(bitrateKbps * 2)) + 'k'
-                    );
-                }
-            }
+            // Ogg Vorbis uses libvorbis's native quality scale. The UI exposes
+            // 1-10 and passes it straight through to -q:a.
+            args.push('-c:a', 'libvorbis', '-q:a', String(settings.vorbisQuality));
         } else if (format === 'OPUS') {
-            // Ten-millisecond frames avoid the bundled libopus stack overflow
-            // at 48 kHz. Longer frames still preserve all three rate modes.
-            args.push('-c:a', 'libopus', '-b:a', bitrateKbps + 'k', '-frame_duration', '10');
-            if (mode === 'CONSTANT') {
-                args.push('-vbr', 'off');
-            } else if (mode === 'CONSTRAINED') {
-                args.push('-vbr', 'constrained');
-            } else {
-                args.push('-vbr', 'on');
-            }
+            // Opus VBR uses the quality ladder, while CBR keeps the visible
+            // bitrate. libopus has no -q:a scale, so VBR quality is expressed
+            // as a target bitrate. Long frames are encoded as safe 20 ms
+            // frames and repacketised after muxing (see convertAudio).
+            // Cutoff stays at libopus's Auto default; no -cutoff argument.
+            var opusVbr = mode !== 'CONSTANT';
+            var opusTarget = opusVbr
+                ? opusQualityBitrate(settings.opusQuality)
+                : bitrateKbps;
+            var opusFrame = opusEncodeFrameDuration(settings.opusFrameDuration);
+            args.push(
+                '-c:a', 'libopus',
+                '-b:a', opusTarget + 'k',
+                '-frame_duration', String(opusFrame),
+                '-compression_level', String(opusFrameCompressionLevel(settings.opusFrameDuration)),
+                '-application', settings.opusApplication || 'audio'
+            );
+            args.push('-vbr', opusVbr ? 'on' : 'off');
         } else if (format === 'AC3') {
             args.push('-c:a', profile === 'AC3' ? 'ac3' : 'eac3', '-b:a', bitrateKbps + 'k');
         } else if (format === 'WMA') {
@@ -5134,9 +5866,8 @@
                 encodeArgs.push('-af', clipGuardFilter(actualRate));
             }
             encodeArgs.push('-c:a', 'aac', '-b:a', kbps + 'k');
-            // ADTS cannot carry the HE/xHE object types, and the native encoder
-            // in this core produces undecodable HE streams. Use AAC-LC for the
-            // bounded CBR/CVBR streams so the result always plays.
+            // The bundled encoder is LC-only. Signal that explicitly so the
+            // padded ADTS stream and the MP4 container always agree.
             encodeArgs.push('-profile:a', 'aac_low');
             encodeArgs.push('-f', 'adts', adtsName);
 
@@ -5162,7 +5893,8 @@
         // Native AAC can overshoot its target on peaks. CBR uses a fixed frame
         // size, so find the highest encoder rate whose largest frame still fits
         // inside it, then fill every frame up to that size. CVBR caps the same
-        // peak while only lifting undersized frames to a lower bound.
+        // peak, lifts undersized frames to the lower bound, and spreads the
+        // remaining budget to hit the requested average.
         var firstFrame = firstAttempt.frames[0];
         var firstHeaderLen = firstFrame.headerLen;
         var firstSampleRate = firstFrame.sampleRate;
@@ -5178,7 +5910,6 @@
 
         var best = firstAttempt.maxBytes <= maximumBytes ? firstAttempt : null;
         var floorAttempt = null;
-        var cvbrRelaxed = false;
         if (!best) {
             // The first attempt will not be used; let its buffers go before
             // the search allocates another encode of the whole file.
@@ -5221,7 +5952,10 @@
             if (cvbr) {
                 maximumBytes = Math.max(maximumBytes, floorAttempt.maxBytes);
                 minimumBytes = Math.min(minimumBytes, maximumBytes);
-                cvbrRelaxed = true;
+                // If the requested average is below what the encoder floor can
+                // produce, raise the padding target to the reachable average.
+                targetBytes = Math.max(targetBytes,
+                    aacBoundedAverageBytes(floorAttempt.frames, minimumBytes));
             } else {
                 targetBytes = Math.max(targetBytes, floorAttempt.maxBytes);
                 var actualPayloadBytes = targetBytes - firstHeaderLen;
@@ -5242,16 +5976,21 @@
         // Fill elements append after the last audio element. They do not change
         // any audio sample, gain, peak, or dynamic range.
         var padded = cvbr
-            ? padAacAdtsMinimum(best.frames, minimumBytes)
+            ? padAacAdtsConstrained(best.frames, minimumBytes, maximumBytes, targetBytes)
             : padAacAdts(best.frames, targetBytes);
+        if (!padded && cvbr) {
+            // Some target sizes cannot be represented by the fill syntax.
+            // Keep the bounded stream valid and report its reached average.
+            padded = padAacAdtsMinimum(best.frames, minimumBytes);
+        }
         if (!padded) {
             throw new Error(cvbr
                 ? 'Could not pad AAC frames for constrained variable bitrate'
                 : 'Could not pad AAC frames for constant bitrate');
         }
-        if (cvbr && cvbrRelaxed && best.frames.length) {
-            // The requested rate was below the encoder's floor. Report the rate
-            // the bounded stream actually reached instead of an impossible target.
+        if (cvbr && best.frames.length) {
+            // Report the reached average if the exact target could not be
+            // expressed (for example when the encoder floor is above it).
             var realPayloadBytes = padded.length - best.frames.length * firstHeaderLen;
             var realKbps = Math.round(realPayloadBytes * 8 * firstSampleRate /
                 (best.frames.length * firstFrameSamples) / 1000);
@@ -5531,13 +6270,393 @@
         }
     }
 
+    var OGG_CRC_TABLE = null;
+
+    function oggCrcTable() {
+        if (OGG_CRC_TABLE) return OGG_CRC_TABLE;
+        var table = new Uint32Array(256);
+        for (var i = 0; i < 256; i++) {
+            var r = i << 24;
+            for (var j = 0; j < 8; j++) {
+                r = (r & 0x80000000) ? ((r << 1) ^ 0x04c11db7) : (r << 1);
+            }
+            table[i] = r >>> 0;
+        }
+        OGG_CRC_TABLE = table;
+        return table;
+    }
+
+    function oggChecksum(bytes) {
+        var table = oggCrcTable();
+        var crc = 0;
+        for (var i = 0; i < bytes.length; i++) {
+            crc = ((crc << 8) ^ table[((crc >>> 24) ^ bytes[i]) & 0xFF]) >>> 0;
+        }
+        return crc >>> 0;
+    }
+
+    function readUint32LE(bytes, offset) {
+        return (bytes[offset] | (bytes[offset + 1] << 8) |
+            (bytes[offset + 2] << 16) | (bytes[offset + 3] << 24)) >>> 0;
+    }
+
+    function writeUint32LE(bytes, offset, value) {
+        var v = value >>> 0;
+        bytes[offset] = v & 0xFF;
+        bytes[offset + 1] = (v >>> 8) & 0xFF;
+        bytes[offset + 2] = (v >>> 16) & 0xFF;
+        bytes[offset + 3] = (v >>> 24) & 0xFF;
+    }
+
+    function bytesMatchAscii(bytes, offset, text) {
+        if (offset + text.length > bytes.length) return false;
+        for (var i = 0; i < text.length; i++) {
+            if (bytes[offset + i] !== text.charCodeAt(i)) return false;
+        }
+        return true;
+    }
+
+    function concatBytes(chunks, totalLength) {
+        var length = totalLength;
+        if (length == null) {
+            length = 0;
+            for (var i = 0; i < chunks.length; i++) length += chunks[i].length;
+        }
+        var out = new Uint8Array(length);
+        var offset = 0;
+        for (var j = 0; j < chunks.length; j++) {
+            out.set(chunks[j], offset);
+            offset += chunks[j].length;
+        }
+        return out;
+    }
+
+    function opusConfigDurationMs(config) {
+        if (config < 12) return [10, 20, 40, 60][config & 3];
+        if (config < 16) return (config & 1) ? 20 : 10;
+        return [2.5, 5, 10, 20][config & 3];
+    }
+
+    function opusPacketSamples(bytes) {
+        if (!bytes || !bytes.length) return 0;
+        if (bytesMatchAscii(bytes, 0, 'OpusHead') || bytesMatchAscii(bytes, 0, 'OpusTags')) {
+            return 0;
+        }
+        var toc = bytes[0];
+        var config = toc >> 3;
+        var code = toc & 3;
+        var frames = 1;
+        if (code === 1 || code === 2) frames = 2;
+        else if (code === 3 && bytes.length > 1) frames = bytes[1] & 0x3F;
+        return Math.round(opusConfigDurationMs(config) * 48 * frames);
+    }
+
+    function parseOggPackets(bytes) {
+        var pos = 0;
+        var packets = [];
+        var pendingChunks = [];
+        var pendingLength = 0;
+        var serial = 0;
+        while (pos + 27 <= bytes.length) {
+            if (!bytesMatchAscii(bytes, pos, 'OggS')) {
+                throw new Error('Opus repacketisation failed: invalid Ogg page');
+            }
+            var headerType = bytes[pos + 5];
+            var granuleLow = readUint32LE(bytes, pos + 6);
+            var granuleHigh = readUint32LE(bytes, pos + 10);
+            var pageGranule = granuleHigh * 4294967296 + granuleLow;
+            serial = readUint32LE(bytes, pos + 14);
+            var segments = bytes[pos + 26];
+            var dataPos = pos + 27 + segments;
+            var pagePackets = [];
+            for (var i = 0; i < segments; i++) {
+                var len = bytes[pos + 27 + i];
+                pendingChunks.push(bytes.subarray(dataPos, dataPos + len));
+                pendingLength += len;
+                dataPos += len;
+                if (len < 255) {
+                    pagePackets.push({
+                        data: concatBytes(pendingChunks, pendingLength),
+                        granule: 0
+                    });
+                    pendingChunks = [];
+                    pendingLength = 0;
+                }
+            }
+            if (pagePackets.length) {
+                var granule = (granuleLow === 0xFFFFFFFF && granuleHigh === 0xFFFFFFFF)
+                    ? 0 : pageGranule;
+                for (var p = pagePackets.length - 1; p >= 0; p--) {
+                    pagePackets[p].granule = granule;
+                    granule -= opusPacketSamples(pagePackets[p].data);
+                }
+                packets = packets.concat(pagePackets);
+            }
+            pos = dataPos;
+        }
+        return { packets: packets, serial: serial };
+    }
+
+    function parseOpusPacket(bytes) {
+        var toc = bytes[0];
+        var config = toc >> 3;
+        var stereo = (toc >> 2) & 1;
+        var code = toc & 3;
+        var frames = [];
+        var i;
+        if (code === 0) {
+            frames.push(bytes.subarray(1));
+        } else if (code === 1) {
+            var payload = bytes.length - 1;
+            var frameLen = Math.floor(payload / 2);
+            frames.push(bytes.subarray(1, 1 + frameLen));
+            frames.push(bytes.subarray(1 + frameLen));
+        } else if (code === 2) {
+            var firstLen = bytes[1];
+            var offset = 2;
+            if (firstLen >= 252 && offset < bytes.length) {
+                firstLen += 4 * bytes[offset++];
+            }
+            frames.push(bytes.subarray(offset, offset + firstLen));
+            frames.push(bytes.subarray(offset + firstLen));
+        } else {
+            var off = 1;
+            var countByte = bytes[off++];
+            var count = countByte & 0x3F;
+            var vbr = !!(countByte & 0x80);
+            var padding = !!(countByte & 0x40);
+            var paddingLength = 0;
+            if (padding) paddingLength = bytes[off++];
+            var lengths = [];
+            if (vbr) {
+                for (i = 0; i < count - 1; i++) {
+                    var frameLength = bytes[off++];
+                    if (frameLength >= 252 && off < bytes.length) {
+                        frameLength += 4 * bytes[off++];
+                    }
+                    lengths.push(frameLength);
+                }
+            }
+            var end = bytes.length - paddingLength;
+            var cursor = off;
+            if (!vbr) {
+                var cbrFrameLength = Math.floor((end - off) / count);
+                for (i = 0; i < count; i++) {
+                    frames.push(bytes.subarray(cursor, cursor + cbrFrameLength));
+                    cursor += cbrFrameLength;
+                }
+            } else {
+                for (i = 0; i < count; i++) {
+                    var len = i < lengths.length ? lengths[i] : (end - cursor);
+                    frames.push(bytes.subarray(cursor, cursor + len));
+                    cursor += len;
+                }
+            }
+        }
+        return { config: config, stereo: stereo, frames: frames };
+    }
+
+    function encodeOpusFrameLength(length) {
+        if (length < 252) return [length];
+        var first = 252 + (length & 3);
+        return [first, Math.floor((length - first) / 4)];
+    }
+
+    function buildOpusPacket(config, stereo, frames) {
+        if (!frames.length) throw new Error('Opus repacketisation failed: empty packet');
+        if (frames.length === 1) {
+            return concatBytes([
+                new Uint8Array([(config << 3) | (stereo << 2)]),
+                frames[0]
+            ]);
+        }
+        if (frames.length > 48) {
+            throw new Error('Opus repacketisation failed: too many frames');
+        }
+        var vbr = false;
+        for (var i = 1; i < frames.length; i++) {
+            if (frames[i].length !== frames[0].length) {
+                vbr = true;
+                break;
+            }
+        }
+        var parts = [new Uint8Array([
+            (config << 3) | (stereo << 2) | 3,
+            (vbr ? 0x80 : 0) | frames.length
+        ])];
+        if (vbr) {
+            for (var j = 0; j < frames.length - 1; j++) {
+                parts.push(new Uint8Array(encodeOpusFrameLength(frames[j].length)));
+            }
+        }
+        for (var k = 0; k < frames.length; k++) parts.push(frames[k]);
+        return concatBytes(parts);
+    }
+
+    function buildOggPage(packet, granule, serial, sequence, headerType, lacing) {
+        var page = new Uint8Array(27 + lacing.length + packet.length);
+        page[0] = 0x4F; // OggS
+        page[1] = 0x67;
+        page[2] = 0x67;
+        page[3] = 0x53;
+        page[4] = 0;
+        page[5] = headerType;
+        if (granule < 0) {
+            writeUint32LE(page, 6, 0xFFFFFFFF);
+            writeUint32LE(page, 10, 0xFFFFFFFF);
+        } else {
+            writeUint32LE(page, 6, granule % 4294967296);
+            writeUint32LE(page, 10, Math.floor(granule / 4294967296));
+        }
+        writeUint32LE(page, 14, serial);
+        writeUint32LE(page, 18, sequence);
+        writeUint32LE(page, 22, 0);
+        page[26] = lacing.length;
+        for (var i = 0; i < lacing.length; i++) page[27 + i] = lacing[i];
+        page.set(packet, 27 + lacing.length);
+        writeUint32LE(page, 22, oggChecksum(page));
+        return page;
+    }
+
+    function appendOggPacketPages(pages, packet, granule, serial, state, headerType, eos) {
+        var offset = 0;
+        var first = true;
+        var needFinalEmpty = false;
+        while (offset < packet.length) {
+            var remaining = packet.length - offset;
+            var chunkLength = remaining > 65024 ? 65025 : remaining;
+            var isFinal = remaining <= 65024;
+            var chunk = packet.subarray(offset, offset + chunkLength);
+            var lacing = [];
+            if (isFinal) {
+                var full = Math.floor(chunk.length / 255);
+                for (var i = 0; i < full; i++) lacing.push(255);
+                lacing.push(chunk.length % 255);
+            } else {
+                for (var j = 0; j < 255; j++) lacing.push(255);
+            }
+            var pageHeader = first ? headerType : 0x01;
+            if (isFinal && eos) pageHeader |= 0x04;
+            pages.push(buildOggPage(chunk, isFinal ? granule : -1, serial,
+                state.sequence++, pageHeader, lacing));
+            offset += chunkLength;
+            first = false;
+            needFinalEmpty = !isFinal;
+        }
+        if (!packet.length || needFinalEmpty) {
+            pages.push(buildOggPage(new Uint8Array(0), granule, serial,
+                state.sequence++, (first ? headerType : 0x01) | (eos ? 0x04 : 0),
+                [0]));
+        }
+    }
+
+    function repacketizeOpusOgg(bytes, groupSize) {
+        var parsed = parseOggPackets(bytes);
+        var headers = [];
+        var audio = [];
+        for (var i = 0; i < parsed.packets.length; i++) {
+            var packet = parsed.packets[i];
+            if (bytesMatchAscii(packet.data, 0, 'OpusHead') ||
+                bytesMatchAscii(packet.data, 0, 'OpusTags')) {
+                headers.push(packet);
+            } else {
+                audio.push(packet);
+            }
+        }
+        if (headers.length < 2 || !audio.length) {
+            throw new Error('Opus repacketisation failed: missing headers or audio');
+        }
+        var pages = [];
+        var state = { sequence: 0 };
+        appendOggPacketPages(pages, headers[0].data, 0, parsed.serial, state, 0x02, false);
+        appendOggPacketPages(pages, headers[1].data, 0, parsed.serial, state, 0x00, false);
+        for (var start = 0; start < audio.length; start += groupSize) {
+            var group = audio.slice(start, start + groupSize);
+            var frames = [];
+            var config = null;
+            var stereo = 0;
+            for (var g = 0; g < group.length; g++) {
+                var parsedPacket = parseOpusPacket(group[g].data);
+                if (config === null) {
+                    config = parsedPacket.config;
+                    stereo = parsedPacket.stereo;
+                }
+                for (var f = 0; f < parsedPacket.frames.length; f++) {
+                    frames.push(parsedPacket.frames[f]);
+                }
+            }
+            var combined = buildOpusPacket(config, stereo, frames);
+            var last = group[group.length - 1];
+            appendOggPacketPages(pages, combined, last.granule, parsed.serial, state,
+                0x00, start + groupSize >= audio.length);
+        }
+        return concatBytes(pages);
+    }
+
+    async function convertAacViaServer(file, settings, outputInfo) {
+        var query = new URLSearchParams();
+        query.set('filename', file.name || 'input');
+        query.set('mode', settings.mode);
+        query.set('bitrate', String(settings.actualBitrateKbps || settings.bitrateKbps));
+        query.set('rate', String(settings.rate));
+        query.set('profile', settings.profile || 'AACLC');
+
+        var endpoint = AUDIO_BACKEND_URL + '/api/convert?' + query.toString();
+        if (conversionProgress) conversionProgress(0.08);
+
+        var response;
+        try {
+            response = await fetch(endpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/octet-stream' },
+                body: file
+            });
+        } catch (error) {
+            throw new Error('Server conversion backend is unreachable (network error).');
+        }
+
+        if (!response.ok) {
+            var detail = '';
+            try { detail = (await response.text()).trim(); } catch (error) { /* ignore */ }
+            throw new Error('Server conversion failed: ' +
+                (detail || ('HTTP ' + response.status)));
+        }
+
+        var blob = await response.blob();
+        if (!blob.size) {
+            throw new Error('Server conversion produced an empty output file');
+        }
+
+        // FDK VBR is quality-based. Report the actual stream average returned by
+        // the server instead of pretending the selected kbps target was exact.
+        if (settings.mode === 'VARIABLE') {
+            var actual = parseInt(response.headers.get('X-Actual-Bitrate') || '', 10);
+            if (!actual && selectedFileDuration > 0) {
+                actual = Math.round(blob.size * 8 / selectedFileDuration / 1000);
+            }
+            if (actual > 0) {
+                settings.actualBitrateKbps = actual;
+                settings.bitrateText = '~' + actual + ' kbps';
+            }
+        }
+
+        if (conversionProgress) conversionProgress(0.9);
+        return {
+            blob: blob,
+            name: downloadName(file, outputInfo.ext),
+            outputInfo: outputInfo
+        };
+    }
+
     async function convertAudio(file, settings) {
-        var ffmpeg = await ensureFFmpeg();
         if (conversionProgress) conversionProgress(0);
 
         var outputInfo = OUTPUT_FORMATS[settings.format];
         if (!outputInfo) throw new Error('Unsupported output format');
 
+        // The native AAC encoder is LC-only. Normalise stale profile values
+        // before they can influence sample-rate or bitrate resolution.
+        if (settings.format === 'AAC') settings.profile = 'AACLC';
         var actualRate = resolveSampleRate(settings.format, settings.rate, settings.profile);
         var actualBitrate = resolveBitrate(settings.format, settings.bitrateKbps, settings.mode, actualRate, settings.profile);
         settings.bitDepth = resolveBitDepth(settings.format, settings.bitDepth);
@@ -5553,6 +6672,13 @@
             settings.bitrateText = actualBitrate + ' kbps';
         }
 
+        // AAC goes through the server-side libfdk_aac backend. The FDK-enabled
+        // FFmpeg binary is never sent to the browser.
+        if (settings.format === 'AAC' && AUDIO_BACKEND_URL !== null) {
+            return await convertAacViaServer(file, settings, outputInfo);
+        }
+
+        var ffmpeg = await ensureFFmpeg();
         var ext = inputExtension(file);
         var inputName = 'input' + (ext ? '.' + ext : '');
         var outputName = 'output.' + outputInfo.ext;
@@ -5567,9 +6693,10 @@
 
         var clipGuard = settings.clipGuard && !settings.lossless;
         var data;
+        // Native AAC has no real CBR/CVBR rate control. The bounded paths
+        // encode AAC-LC ADTS, pad/repacketise frames, then remux to MP4.
         var boundedAac = settings.format === 'AAC' &&
-            (settings.mode === 'CONSTANT' ||
-                (settings.mode === 'CONSTRAINED' && settings.profile === 'AACLC'));
+            (settings.mode === 'CONSTANT' || settings.mode === 'CONSTRAINED');
         var mp2Abr = settings.format === 'MP2' && settings.mode === 'AVERAGE';
         var mp2Vbr = settings.format === 'MP2' && settings.mode === 'VARIABLE';
         if (boundedAac) {
@@ -5606,8 +6733,28 @@
 
             data = await ffmpeg.readFile(outputName);
         }
+        if (settings.format === 'OPUS') {
+            var opusGroup = opusRepacketizeGroupSize(settings.opusFrameDuration);
+            if (opusGroup > 1) {
+                data = repacketizeOpusOgg(data, opusGroup);
+            }
+        }
         if (!data || !data.length) {
             throw new Error('FFmpeg produced an empty output file');
+        }
+
+        // Native AAC VBR follows -q:a rather than the selected kbps target.
+        // Report the audio payload average the file actually reached instead
+        // of pretending the target was exact.
+        if (settings.format === 'AAC' && settings.mode === 'VARIABLE') {
+            var aacVbrKbps = mp4AudioAverageKbps(data);
+            if (!aacVbrKbps && selectedFileDuration > 0) {
+                aacVbrKbps = Math.round(data.length * 8 / selectedFileDuration / 1000);
+            }
+            if (aacVbrKbps > 0) {
+                settings.actualBitrateKbps = aacVbrKbps;
+                settings.bitrateText = '~' + aacVbrKbps + ' kbps';
+            }
         }
 
         var blob = new Blob([data], { type: outputInfo.mime });
@@ -5641,10 +6788,10 @@
         if (doneStatus) doneStatus.textContent = text || '';
     }
 
-    function downloadLastResult(message) {
+    function downloadLastResult() {
         if (!lastDownload || !lastDownload.url) return;
         triggerDownload(lastDownload.url, lastDownload.name);
-        setDoneStatus(message || 'Saved to your browser\'s download folder.');
+        setDoneStatus('');
         setDoneSaveLabel(canPickSaveFolder() ? 'Choose folder' : 'Download again');
     }
 
@@ -5680,7 +6827,7 @@
             });
         }).then(function () {
             if (current !== lastDownload) return;
-            setDoneStatus('Saved to the folder you chose.');
+            setDoneStatus('');
             setDoneSaveLabel('Choose folder');
         }).catch(function (error) {
             if (current !== lastDownload) return;
@@ -5708,7 +6855,7 @@
             // The picker is unavailable in this context even after a direct
             // click. Fall back to the browser's normal download flow.
             savePickerBroken = true;
-            downloadLastResult('Saved to your browser\'s download folder.');
+            downloadLastResult();
         }).finally(function () {
             isSavingFile = false;
             doneSave.disabled = false;
@@ -5772,7 +6919,12 @@
                 progressWrap.hidden = false;
                 progressFill.style.width = '0%';
                 var failureMessage = 'Conversion failed — try another format or bitrate.';
-                if (error && error.message && /engine|worker|fetch|network|local files|too long/i.test(error.message)) {
+                if (error && error.message && /unreachable|network error/i.test(error.message)) {
+                    failureMessage = 'Conversion server is unreachable — start the FDK backend and retry.';
+                } else if (error && error.message && /^Server conversion failed:/i.test(error.message)) {
+                    failureMessage = error.message.replace(/^Server conversion failed:\s*/i, '');
+                    if (failureMessage.length > 240) failureMessage = failureMessage.slice(0, 240) + '…';
+                } else if (error && error.message && /engine|worker|fetch|local files|too long/i.test(error.message)) {
                     failureMessage = 'Audio engine could not load — check your connection and try again.';
                 }
                 progressLabel.textContent = failureMessage;
@@ -5809,10 +6961,20 @@
         var adpcm = isAdpcmFormat(settings.format);
         var quality = settings.lossless
             ? 'Lossless · ' + bitDepthLabel(settings.bitDepth)
-            : (adpcm ? bitDepthLabel(settings.bitDepth) : settings.bitrateText);
+            : (adpcm
+                ? bitDepthLabel(settings.bitDepth)
+                : (settings.format === 'OGG'
+                    ? 'Quality ' + settings.vorbisQuality
+                    : (settings.format === 'OPUS' && settings.mode !== 'CONSTANT'
+                        ? 'Quality ' + settings.opusQuality
+                        : settings.bitrateText)));
         var rate = settings.rateShort;
-        var mode = !settings.lossless && !adpcm ? settings.modeText : '';
+        var mode = !settings.lossless && !adpcm && settings.format !== 'OGG'
+            ? settings.modeText
+            : '';
         doneSummary.textContent = route + ' · ' + quality + (rate ? ' · ' + rate : '') + (mode ? ' · ' + mode : '');
+        if (doneSize) doneSize.textContent = formatExactSize(result.blob.size);
+        setDoneStatus('');
 
         if (lastDownload && lastDownload.url) {
             URL.revokeObjectURL(lastDownload.url);
@@ -5833,7 +6995,7 @@
             saveConvertedFile(true);
         } else {
             triggerDownload(lastDownload.url, lastDownload.name);
-            setDoneStatus('Saved to your browser\'s download folder.');
+            setDoneStatus('');
         }
 
         isConverting = false;
@@ -5905,9 +7067,30 @@
             updateFlacCompressionUi(true);
             resetConvertOutput();
         });
+        vorbisQualitySlider.addEventListener('input', function () {
+            updateVorbisQualityUi(true);
+            resetConvertOutput();
+        });
+        opusQualitySlider.addEventListener('input', function () {
+            updateOpusQualityUi(true);
+            resetConvertOutput();
+        });
+        opusFrameSelect.addEventListener('change', function () {
+            opusFrameDropdown.syncLabel(true);
+            opusFrameDropdown.syncSelection();
+            resetConvertOutput();
+        });
+        opusApplicationSelect.addEventListener('change', function () {
+            opusApplicationDropdown.syncLabel(true);
+            opusApplicationDropdown.syncSelection();
+            resetConvertOutput();
+        });
         bitrateModeSelect.addEventListener('change', function () {
             bitrateModeDropdown.syncLabel(true);
             bitrateModeDropdown.syncSelection();
+            // Opus switches between the bitrate control (CBR) and the quality
+            // slider (VBR); re-evaluate the whole format option set.
+            syncFormatOptions();
             syncBitrateAvailability(true);
             resetConvertOutput();
         });
@@ -5939,12 +7122,16 @@
         rateDropdown.build();
         bitrateModeDropdown.build();
         musicProfileDropdown.build();
+        opusFrameDropdown.build();
+        opusApplicationDropdown.build();
         formatDropdown.syncLabel(false);
         bitrateDropdown.syncLabel(false);
         bitDepthDropdown.syncLabel(false);
         rateDropdown.syncLabel(false);
         bitrateModeDropdown.syncLabel(false);
         musicProfileDropdown.syncLabel(false);
+        opusFrameDropdown.syncLabel(false);
+        opusApplicationDropdown.syncLabel(false);
         updateConvertState();
     }
 

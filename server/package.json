@@ -1,0 +1,15 @@
+{
+  "name": "fdk-aac-audio-backend",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Server-side FFmpeg + libfdk_aac conversion endpoint",
+  "main": "index.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node index.js",
+    "test": "node test-args.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
